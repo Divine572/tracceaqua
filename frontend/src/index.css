@@ -1,10 +1,10 @@
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Custom styles for TracceAqua */
 @layer base {
   body {
     @apply bg-gradient-to-br from-blue-50 to-blue-100;
-    }
+  }
 }
