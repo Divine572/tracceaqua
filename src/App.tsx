@@ -1,26 +1,21 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { OnboardingFlow } from './components/onboarding/OnboardingFlow'
+import { Dashboard } from './pages/dashboard/Dashboard'
+import { WalletConnect } from './components/auth/WalletConnect'
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+    <Router>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
+        <Routes>
+          <Route path="/" element={<OnboardingFlow />} />
+          <Route path="/connect" element={<WalletConnect />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          {/* More routes will be added */}
+        </Routes>
+      </div>
+    </Router>
+  )
 }
 
-export default App;
+export default App
