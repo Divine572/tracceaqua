@@ -476,12 +476,12 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
         </div>
 
         {/* Enhanced Navigation */}
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 flex flex-col items-center justify-center">
           
           {/* Primary Button with enhanced effects */}
           <button
             onClick={handleNext}
-            className="w-full bg-white text-gray-800 font-semibold py-5 px-6 rounded-2xl 
+            className="w-[50%] bg-white text-gray-800 font-semibold py-5 px-6 rounded-2xl 
                      transform transition-all duration-300 hover:scale-105 hover:shadow-2xl
                      flex items-center justify-center space-x-2 group relative overflow-hidden
                      active:scale-95 animate-glow"
@@ -499,7 +499,7 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
           {currentScreen > 0 && (
             <button
               onClick={handlePrevious}
-              className="w-full text-white/80 font-medium py-4 px-6 rounded-xl
+              className="w-[50%] text-white/80 font-medium py-4 px-6 rounded-xl
                        hover:text-white hover:bg-white/10 transition-all duration-300
                        transform hover:scale-102 active:scale-98"
             >
@@ -511,7 +511,7 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
           {currentScreen < screens.length - 1 && (
             <button
               onClick={handleSkip}
-              className="w-full text-white/60 font-medium py-3 hover:text-white/80 
+              className="w-[50%] text-white/60 font-medium py-3 hover:text-white/80 
                        transition-all duration-300 hover:scale-105 active:scale-95
                        animate-bounce animation-delay-1000"
             >
