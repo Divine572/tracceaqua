@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "backend": "cd ../backend && npm run dev"
   },
   "dependencies": {
     "@pinata/sdk": "^2.1.0",
@@ -15,6 +16,7 @@
     "@reown/appkit-adapter-wagmi": "^1.7.16",
     "@tailwindcss/vite": "^4.1.11",
     "@tanstack/react-query": "^5.83.0",
+    "@types/qrcode": "^1.5.5",
     "@types/react-router-dom": "^5.3.3",
     "@types/uuid": "^10.0.0",
     "axios": "^1.11.0",
@@ -25,6 +27,7 @@
     "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-hot-toast": "^2.5.2",
     "react-icons": "^5.5.0",
     "react-qr-scanner": "^1.0.0-alpha.11",
     "react-router-dom": "^7.7.1",

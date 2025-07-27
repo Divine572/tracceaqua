@@ -1,14 +1,37 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronRight, Users, Scan, Shield, Heart, Waves, Fish, Volume2, VolumeX } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  ChevronRight,
+  Users,
+  Scan,
+  Shield,
+  Heart,
+  Waves,
+  Fish,
+  Volume2,
+  VolumeX,
+  Wallet,
+  Loader2,
+  AlertCircle
+} from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
+import { showToast } from '../../utils/toast';
 
 const OnboardingFlow = () => {
   const [currentScreen, setCurrentScreen] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [hasVibration, setHasVibration] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const audioContextRef = useRef<AudioContext | null>(null);
+
+  // Auth and navigation hooks
+  const { connectWallet, signIn, user, isLoading } = useAuth();
+  const navigate = useNavigate();
 
   // Check for vibration support
   useEffect(() => {
@@ -21,6 +44,13 @@ const OnboardingFlow = () => {
       audioContextRef.current = new (window.AudioContext || window.AudioContext)();
     }
   }, [soundEnabled]);
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
 
   const screens = [
     {
@@ -59,27 +89,24 @@ const OnboardingFlow = () => {
       description: "Your trusted partner for traceability and conservation in the Nigerian shellfish supply chain",
       icon: <Heart className="w-20 h-20 text-emerald-400" />,
       animation: "welcome",
-      buttonText: "Get Started",
+      buttonText: "Connect Wallet",
       gradient: "from-emerald-600 to-teal-700",
       bgPattern: "welcome"
     }
   ];
 
   // Native Web Audio API sound generation
-interface PlaySoundTypeMap {
+  interface PlaySoundTypeMap {
     click: void;
     transition: void;
     success: void;
     whoosh: void;
-}
+    error: void;
+  }
 
-type PlaySoundType = keyof PlaySoundTypeMap;
+  type PlaySoundType = keyof PlaySoundTypeMap;
 
-// interface AudioContextRef {
-//     current: AudioContext | null;
-// }
-
-const playSound = (type: PlaySoundType): void => {
+  const playSound = (type: PlaySoundType): void => {
     if (!soundEnabled || !audioContextRef.current) return;
 
     const ctx: AudioContext = audioContextRef.current;
@@ -90,69 +117,109 @@ const playSound = (type: PlaySoundType): void => {
     gainNode.connect(ctx.destination);
     
     switch (type) {
-        case 'click':
-            oscillator.frequency.setValueAtTime(800, ctx.currentTime);
-            gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-            oscillator.start(ctx.currentTime);
-            oscillator.stop(ctx.currentTime + 0.1);
-            break;
-        case 'transition':
-            oscillator.frequency.setValueAtTime(400, ctx.currentTime);
-            oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.3);
-            gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-            oscillator.start(ctx.currentTime);
-            oscillator.stop(ctx.currentTime + 0.3);
-            break;
-        case 'success':
-            // Success chord
-            [523, 659, 784].forEach((freq, i) => {
-                const osc: OscillatorNode = ctx.createOscillator();
-                const gain: GainNode = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.frequency.setValueAtTime(freq, ctx.currentTime);
-                gain.gain.setValueAtTime(0.03, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-                osc.start(ctx.currentTime + i * 0.1);
-                osc.stop(ctx.currentTime + 0.5 + i * 0.1);
-            });
-            break;
-        case 'whoosh':
-            oscillator.frequency.setValueAtTime(200, ctx.currentTime);
-            oscillator.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.2);
-            gainNode.gain.setValueAtTime(0.08, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-            oscillator.start(ctx.currentTime);
-            oscillator.stop(ctx.currentTime + 0.2);
-            break;
+      case 'click':
+        oscillator.frequency.setValueAtTime(800, ctx.currentTime);
+        gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.1);
+        break;
+      case 'transition':
+        oscillator.frequency.setValueAtTime(400, ctx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.3);
+        gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.3);
+        break;
+      case 'success':
+        // Success chord
+        [523, 659, 784].forEach((freq, i) => {
+          const osc: OscillatorNode = ctx.createOscillator();
+          const gain: GainNode = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+          gain.gain.setValueAtTime(0.03, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+          osc.start(ctx.currentTime + i * 0.1);
+          osc.stop(ctx.currentTime + 0.5 + i * 0.1);
+        });
+        break;
+      case 'whoosh':
+        oscillator.frequency.setValueAtTime(200, ctx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.2);
+        gainNode.gain.setValueAtTime(0.08, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.2);
+        break;
+      case 'error':
+        // Error sound
+        oscillator.frequency.setValueAtTime(150, ctx.currentTime);
+        gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.3);
+        break;
     }
-};
+  };
 
-  // Enhanced navigation with transitions and feedback
+  // Authentication handler
+  const handleAuthentication = async () => {
+    setIsAuthenticating(true);
+    setAuthError(null);
+
+    try {
+      // Haptic feedback
+      if (hasVibration) {
+        navigator.vibrate([50, 30, 50]);
+      }
+
+      playSound('click');
+
+      // Connect wallet first
+      await connectWallet();
+
+      // The useAuth hook will automatically trigger signIn when wallet connects
+      // Wait a bit for the auth process to complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      playSound('success');
+      showToast.success('Welcome to TracceAqua!');
+
+      // Navigate to dashboard (this will happen automatically via useEffect when user is set)
+
+    } catch (error: any) {
+      console.error('Authentication failed:', error);
+      playSound('error');
+      setAuthError(error?.message || 'Authentication failed. Please try again.');
+      showToast.error('Authentication failed. Please try again.');
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  // Enhanced navigation with authentication
   const handleNext = async () => {
-    // Haptic feedback
+  // If we're on the last screen, handle authentication
+    if (currentScreen === screens.length - 1) {
+      await handleAuthentication();
+      return;
+    }
+
+    // Regular navigation for other screens
     if (hasVibration) {
       navigator.vibrate([50, 30, 50]);
     }
 
-    // Audio feedback
-    if (currentScreen === screens.length - 1) {
-      playSound('success');
-    } else {
-      playSound('click');
-    }
-
+    playSound('click');
     setIsTransitioning(true);
     
     setTimeout(() => {
       if (currentScreen < screens.length - 1) {
         setCurrentScreen(currentScreen + 1);
         playSound('transition');
-      } else {
-        playSound('whoosh');
-        console.log("Navigate to authentication");
       }
       setIsTransitioning(false);
     }, 300);
@@ -170,6 +237,7 @@ const playSound = (type: PlaySoundType): void => {
       if (currentScreen > 0) {
         setCurrentScreen(currentScreen - 1);
         playSound('transition');
+        setAuthError(null); // Clear any auth errors when going back
       }
       setIsTransitioning(false);
     }, 300);
@@ -188,14 +256,14 @@ const playSound = (type: PlaySoundType): void => {
     }, 300);
   };
 
-// Touch gesture handlers
-const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>): void => {
+  // Touch gesture handlers (unchanged)
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>): void => {
     touchStartX.current = e.touches[0].clientX;
-};
+  };
 
-const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
     touchEndX.current = e.touches[0].clientX;
-};
+  };
 
   const handleTouchEnd = () => {
     if (!touchStartX.current || !touchEndX.current) return;
@@ -220,7 +288,7 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
     touchEndX.current = 0;
   };
 
-  // Keyboard navigation
+  // Keyboard navigation (unchanged)
   useEffect(() => {
     interface KeyboardEventWithPrevent extends KeyboardEvent {
       preventDefault(): void;
@@ -244,14 +312,13 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [currentScreen]);
 
-  // Custom CSS animations component
+  // Custom CSS animations component (unchanged)
   const CustomAnimation: React.FC<{ type: string; className?: string }> = ({ type, className = "" }) => {
     switch (type) {
       case 'users':
         return (
           <div className={`${className} relative`}>
             <div className="w-24 h-24 relative">
-              {/* Animated user circles */}
               {[...Array(6)].map((_, i) => (
                 <div
                   key={i}
@@ -272,7 +339,6 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
         return (
           <div className={`${className} relative`}>
             <div className="w-24 h-24 relative">
-              {/* QR scanning line */}
               <div className="absolute inset-0 border-2 border-white/30 rounded-lg">
                 <div className="w-full h-0.5 bg-cyan-400 animate-scan absolute top-0"></div>
               </div>
@@ -284,7 +350,6 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
         return (
           <div className={`${className} relative`}>
             <div className="w-24 h-24 relative">
-              {/* Blockchain blocks */}
               {[...Array(3)].map((_, i) => (
                 <div
                   key={i}
@@ -305,7 +370,6 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
         return (
           <div className={`${className} relative`}>
             <div className="w-24 h-24 relative">
-              {/* Floating elements */}
               <Waves className="absolute top-2 left-2 w-4 h-4 text-white/40 animate-bounce" />
               <Fish className="absolute top-4 right-2 w-3 h-3 text-white/40 animate-bounce delay-500" />
               <Heart className="w-20 h-20 text-emerald-400 relative z-10 animate-heartbeat" />
@@ -317,7 +381,7 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
     }
   };
 
-  // Background pattern components
+  // Background pattern components (unchanged)
   const BackgroundPattern: React.FC<{ type: string }> = ({ type }) => {
     switch (type) {
       case 'users':
@@ -378,6 +442,7 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
   };
 
   const current = screens[currentScreen];
+  const isLoading_ = isLoading || isAuthenticating;
 
   return (
     <div 
@@ -405,7 +470,6 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
 
       {/* Background with enhanced gradient */}
       <div className={`absolute inset-0 bg-gradient-to-br ${current.gradient} transition-all duration-700 ease-in-out`}>
-        {/* Animated background pattern */}
         <BackgroundPattern type={current.bgPattern} />
         
         {/* Floating particles */}
@@ -424,16 +488,15 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
           ))}
         </div>
 
-        {/* Gradient overlay for depth */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/10"></div>
       </div>
 
-      {/* Content Container with enhanced transitions */}
+      {/* Content Container */}
       <div className={`relative z-10 flex flex-col min-h-screen transition-all duration-500 ${
         isTransitioning ? 'scale-95 opacity-50' : 'scale-100 opacity-100'
       }`}>
         
-        {/* Progress Indicators with enhanced animation */}
+        {/* Progress Indicators */}
         <div className="flex justify-center pt-16 pb-8">
           <div className="flex space-x-3">
             {screens.map((_, index) => (
@@ -451,69 +514,98 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
           </div>
         </div>
 
-        {/* Main Content with slide animation */}
+        {/* Main Content */}
         <div className={`flex-1 flex flex-col items-center justify-center px-6 text-center transition-all duration-700 transform ${
           isTransitioning ? 'translate-x-8 opacity-0' : 'translate-x-0 opacity-100'
         }`}>
           
-          {/* Custom Animation with enhanced effects */}
+          {/* Custom Animation */}
           <div className="mb-8 transform transition-all duration-700 hover:scale-110 hover:rotate-3">
             <CustomAnimation type={current.animation} className="animate-fadeInScale" />
           </div>
 
-          {/* Title with enhanced typewriter effect */}
+          {/* Title */}
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-6 max-w-md leading-tight">
             <span className="inline-block animate-fadeInUp animate-shimmer">
               {current.title}
             </span>
           </h1>
 
-          {/* Description with staggered animation */}
+          {/* Description */}
           <p className="text-lg md:text-xl text-white/90 max-w-sm leading-relaxed mb-12 animate-fadeInUp animation-delay-200">
             {current.description}
           </p>
+
+          {/* Authentication Error Display */}
+          {authError && (
+            <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-lg backdrop-blur-sm animate-fadeInUp">
+              <div className="flex items-center gap-2 text-white">
+                <AlertCircle className="w-5 h-5 text-red-400" />
+                <span className="text-sm">{authError}</span>
+              </div>
+            </div>
+          )}
 
         </div>
 
         {/* Enhanced Navigation */}
         <div className="p-6 space-y-4 flex flex-col items-center justify-center">
           
-          {/* Primary Button with enhanced effects */}
+          {/* Primary Button with authentication support */}
           <button
             onClick={handleNext}
+            disabled={isLoading_}
             className="w-[50%] bg-white text-gray-800 font-semibold py-5 px-6 rounded-2xl 
                      transform transition-all duration-300 hover:scale-105 hover:shadow-2xl
                      flex items-center justify-center space-x-2 group relative overflow-hidden
-                     active:scale-95 animate-glow"
+                     active:scale-95 animate-glow disabled:opacity-50 disabled:cursor-not-allowed
+                     disabled:transform-none"
           >
             {/* Button shine effect */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent 
                           transform -skew-x-12 -translate-x-full group-hover:translate-x-full 
                           transition-transform duration-1000"></div>
             
-            <span className="relative z-10">{current.buttonText}</span>
-            <ChevronRight className="w-5 h-5 group-hover:translate-x-2 transition-transform duration-300 relative z-10" />
+            {isLoading_ ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin relative z-10" />
+                <span className="relative z-10">
+                  {currentScreen === screens.length - 1 ? 'Connecting...' : 'Loading...'}
+                </span>
+              </>
+            ) : (
+              <>
+                  <span className="relative z-10">{current.buttonText}</span>
+                  {currentScreen === screens.length - 1 ? (
+                    <Wallet className="w-5 h-5 group-hover:translate-x-2 transition-transform duration-300 relative z-10" />
+                  ) : (
+                      <ChevronRight className="w-5 h-5 group-hover:translate-x-2 transition-transform duration-300 relative z-10" />
+                )}
+              </>
+            )}
           </button>
 
-          {/* Back Button with subtle animation */}
+          {/* Back Button */}
           {currentScreen > 0 && (
             <button
               onClick={handlePrevious}
+              disabled={isLoading_}
               className="w-[50%] text-white/80 font-medium py-4 px-6 rounded-xl
                        hover:text-white hover:bg-white/10 transition-all duration-300
-                       transform hover:scale-102 active:scale-98"
+                       transform hover:scale-102 active:scale-98 disabled:opacity-50"
             >
               Back
             </button>
           )}
 
-          {/* Skip Button with enhanced bounce effect */}
+          {/* Skip Button */}
           {currentScreen < screens.length - 1 && (
             <button
               onClick={handleSkip}
+              disabled={isLoading_}
               className="w-[50%] text-white/60 font-medium py-3 hover:text-white/80 
                        transition-all duration-300 hover:scale-105 active:scale-95
-                       animate-bounce animation-delay-1000"
+                       animate-bounce animation-delay-1000 disabled:opacity-50"
             >
               Skip
             </button>
@@ -521,14 +613,17 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
 
           {/* Gesture Hint */}
           <div className="text-center text-white/40 text-sm mt-4 animate-fadeIn animation-delay-1000">
-            Swipe left/right or use arrow keys to navigate
+            {currentScreen === screens.length - 1
+              ? "Connect your wallet or use social login to get started"
+              : "Swipe left/right or use arrow keys to navigate"
+            }
           </div>
 
         </div>
 
       </div>
 
-      {/* Enhanced Custom CSS for animations */}
+      {/* Enhanced Custom CSS for animations (unchanged styles) */}
       <style>{`
         @keyframes float {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
@@ -654,7 +749,6 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
           transform: scale(0.98);
         }
 
-        /* Custom scrollbar */
         ::-webkit-scrollbar {
           width: 8px;
         }
@@ -668,7 +762,6 @@ const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>): void => {
           border-radius: 4px;
         }
 
-        /* Smooth transitions for all elements */
         * {
           transition: transform 0.2s ease, opacity 0.2s ease;
         }
